@@ -33,4 +33,4 @@ extern "C" void swap_context(Context* pCurrent, Context* pToSwitchTo);
  *  resuming the context by calling the given function in 'func'
  * When returning, that function will return to the context inside 'pToSwitchTo'
  */
-extern "C" void swap_context_on_top(Context* pCurrent, Context* pToSwitchTo, void (*func)());
+extern "C" void swap_context_on_top(Context* pCurrent, Context* pToSwitchTo, void* userData, void (*func)(void*));

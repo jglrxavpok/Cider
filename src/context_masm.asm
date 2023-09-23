@@ -133,11 +133,12 @@ swap_context PROC
 swap_context ENDP
 
 ; Slightly different version of swap_context,
-;  resuming the context by calling the given function in R8
+;  resuming the context by calling the given function in R9, with its first argument being what is in R8
 ;  When returning, that function will return to the context inside RDX
 ; RCX = WinContext* current context
 ; RDX = WinContext* context to switch to
-; R8  = Address of function to resume on.
+; R8  = Pointer to user data
+; R9  = Address of function to resume on.
 swap_context_on_top PROC
     mov r11, [rsp] ; read return address
     mov [rcx + 8*0], r11 ; store return address (RIP) of previous frame
@@ -193,7 +194,8 @@ swap_context_on_top PROC
     movaps xmm14, [rdx + 8 * 10 + 16 * 8]
     movaps xmm15, [rdx + 8 * 10 + 16 * 9]
 
-    push r11 ; function on top 's return will come back to the switch-to context
-    jmp r8 ; switch execution to function on top
+    mov rcx, r8 ; argument of function on top will be user data
+    push r11
+    jmp r9 ; switch execution to function on top
 swap_context_on_top ENDP
 END

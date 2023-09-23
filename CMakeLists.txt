@@ -10,11 +10,17 @@ set(CMAKE_ASM_MASM_CREATE_STATIC_LIBRARY "<CMAKE_AR> /OUT:<TARGET> <LINK_FLAGS> 
 
 
 include(FetchContent)
-add_library(cider src/context_masm.asm src/context.c)
+add_library(cider
+        src/context_masm.asm
+        src/context.cpp
+        src/Fiber.cpp
+)
+target_include_directories(cider PUBLIC include)
 
 # Disable RTC for MSVC
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     STRING (REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    STRING (REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 endif()
 
 

@@ -9,8 +9,15 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(
         Tests
+        # Context stuff
         basic_context_switch.cpp
         swap_context.cpp
+
+        # Fibers
+        simple_fiber.cpp
+
+        # Fiber synchronisation primitives
+        # TODO
 )
 target_include_directories(Tests PUBLIC "../include")
 target_link_libraries(

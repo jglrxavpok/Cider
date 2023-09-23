@@ -86,7 +86,7 @@ TEST(SwapContext, ExecuteOnTop) {
     EXPECT_FALSE(onTop2);
     // swap to new context, parentContext will point to the current context,
     //  resuming execution right after the call to swap_context
-    swap_context_on_top(&parentContext, &subFunctionContext, []() {
+    swap_context_on_top(&parentContext, &subFunctionContext, nullptr, [](void*) {
         EXPECT_FALSE(calledSubFunctionWithOnTop1);
         EXPECT_FALSE(onTop1);
         onTop1 = true;
@@ -98,7 +98,7 @@ TEST(SwapContext, ExecuteOnTop) {
     EXPECT_FALSE(onTop2);
 
     // swap to context inside subFunction
-    swap_context_on_top(&parentContext, &subfunctionInnerContext, []() {
+    swap_context_on_top(&parentContext, &subfunctionInnerContext, nullptr, [](void*) {
         EXPECT_FALSE(calledSubFunctionWithOnTop2);
         EXPECT_FALSE(onTop2);
         onTop2 = true;
