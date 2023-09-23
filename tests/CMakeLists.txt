@@ -15,6 +15,7 @@ add_executable(
 
         # Fibers
         simple_fiber.cpp
+        fiber_local_storage.cpp
 
         # Fiber synchronisation primitives
         # TODO

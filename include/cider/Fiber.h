@@ -5,6 +5,7 @@
 #pragma once
 #include <span>
 #include <functional>
+#include <array>
 #include <cider/context.h>
 
 namespace Cider {
@@ -12,7 +13,11 @@ namespace Cider {
 
     class FiberHandle {
     public:
-        // TODO: fiber local storage
+        /**
+         * Local storage usable by fibers.
+         * if you need more memory, put pointers in here
+         */
+        std::array<char, 64> localStorage{ 0 };
 
         /**
          * Returns execution to parent fiber.
@@ -79,6 +84,7 @@ namespace Cider {
         Cider::FiberProc proc; // function to execute
         void* pUserData = nullptr; // pointer to user data
         std::span<char> stack; // user provided stack
+        FiberHandle* pFiberHandle = nullptr; // fiber handle, stored inside stack directly
 
         Context parentContext; // context to resume to when execution stops or yields
         Context currentContext; // context to resume when switching into this fiber

@@ -28,13 +28,14 @@ namespace Cider {
         currentContext.rsp = (Register) (stack.data() + stack.size() - 8);
 
         swapContextOnTop(&parentContext, &currentContext, [&]() {
-            // set-ups stack with a fiber handle
             FiberHandle handle;
             handle.pCurrentFiber = this;
+            this->pFiberHandle = &handle;
 
+            // setups stack with a fiber handle
             swap_context(&currentContext, &parentContext); // go back to constructor
 
-            this->proc(handle, pUserData);
+            this->proc(*pFiberHandle, pUserData);
             swap_context(&currentContext, &parentContext); // execution finished: return to parent.
             // going past that line goes into FiberBottomOfCallstack
         });
@@ -54,19 +55,13 @@ namespace Cider {
 
     void Fiber::switchToWithOnTop(FiberProc onTopFunc, void* onTopUserData) {
         swapContextOnTop(&parentContext, &currentContext, [this, onTopFunc, onTopUserData]() {
-            FiberHandle handle;
-            handle.pCurrentFiber = this;
-
-            onTopFunc(handle, onTopUserData);
+            onTopFunc(*pFiberHandle, onTopUserData);
         });
     }
 
     void Fiber::switchToWithOnTop(StdFunctionProc onTop) {
         swapContextOnTop(&parentContext, &currentContext, [this, onTopProc = std::move(onTop)]() {
-            FiberHandle handle;
-            handle.pCurrentFiber = this;
-
-            onTopProc(handle);
+            onTopProc(*pFiberHandle);
         });
     }
 

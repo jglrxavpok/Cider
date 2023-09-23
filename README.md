@@ -55,6 +55,17 @@ void myFiberCode(Cider::FiberHandle& fiber) {
 The `FiberHandle` object can be passed to sub-functions to yield. There is no way to obtain the current fiber without a FiberHandle.
 This is to avoid surprise yields in code that looks synchronous.
 
+## Fiber local storage
+Because the same fiber can run on different threads over time, thread_local is not useable for fiber local storage.
+Fiber local storage can be used to replace thread_local:
+```cpp
+int someFunction(Cider::FiberHandle& fiber, int arg0, char arg2, std::string someText) {
+    return ((int*)fiber.localStorage.data())[0];
+}
+```
+`FiberHandle::localStorage` is a `std::array<char, SIZE>`. If more memory is needed, consider saving a pointer inside. 
+You can also store a pointer to something inside the stack inside your fiber proc.
+
 # Context-switch primitives
 `context.h` contains the declarations of switch primitives, implemented in Assembly in `src/context_masm.asm`. No other 
 files are required if you only need these primitives.
