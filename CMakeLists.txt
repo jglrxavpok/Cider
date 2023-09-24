@@ -14,6 +14,11 @@ add_library(cider
         src/context_masm.asm
         src/context.cpp
         src/Fiber.cpp
+        src/Mutex.cpp
+        src/WaitQueue.cpp
+
+        src/internal/SpinLock.cpp
+        src/scheduling/GreedyScheduler.cpp
 )
 target_include_directories(cider PUBLIC include)
 

@@ -7,7 +7,7 @@ fast context switching.
 Partially based on https://graphitemaster.github.io/fibers/ (warning, it has 2 errors: RSP is not read properly in get_context, 
 and first integer argument is RCX on Windows, not RDX)
 
-Windows only for now.
+Windows only for now. Relies on the STL, but it should be easy to replace types with your own.
 
 # Usage
 ## Creating a fiber
@@ -115,5 +115,6 @@ Cider has 3 layers, with each layer building on top of the other:
     Locks, condition variables, latches for fibers.
     - TODO
 
-# Non-goals
-- Fiber scheduling: scheduling can take many forms, and different applications will require different scheduling methods
+4. Fiber scheduling
+    Cider exposes the `Scheduler` base class that can be extended to provide your own scheduler. By default, fibers start 
+    with a reference to the `GreedyScheduler` which immediately runs fibers when they are scheduled.

@@ -10,6 +10,16 @@
 
 namespace Cider {
     class Fiber;
+    class FiberHandle;
+    class Scheduler;
+
+    using FiberProc = void(*)(Cider::FiberHandle& fiber, void* userData);
+    using StdFunctionFiberProc = std::function<void(Cider::FiberHandle&)>;
+
+    using Proc = void(*)(void* userData);
+    using StdFunctionProc = std::function<void()>;
+
+    Scheduler& getDefaultScheduler();
 
     class FiberHandle {
     public:
@@ -25,14 +35,53 @@ namespace Cider {
          */
         void yield();
 
+        /**
+         * Returns execution to parent fiber BUT runs some code before resuming.
+         * You are not guaranteed to come back to a fiber, so you cannot yield inside the code to run when resuming.
+         */
+        void yieldOnTop(Proc onTopProc, void* onTopUserData);
+
+        /**
+         * Returns execution to parent fiber BUT runs some code before resuming.
+         * You are not guaranteed to come back to a fiber, so you cannot yield inside the code to run when resuming.
+         */
+        void yieldOnTop(StdFunctionProc onTop);
+
+        /**
+         * Immediately resumes execution of suspended fiber on the current thread.
+         */
+        void resume();
+
+        /**
+         * Immediately resumes execution of suspended fiber on the current thread, and runs the given code before resuming.
+         */
+        void resumeOnTop(FiberProc onTopProc, void* onTopUserData);
+
+        /**
+         * Immediately resumes execution of suspended fiber on the current thread, and runs the given code before resuming.
+         */
+        void resumeOnTop(const StdFunctionFiberProc& onTop);
+
+        /**
+         * Schedule this fiber for execution
+         */
+        void wake();
+
+        /**
+         * Schedule this fiber for execution, and runs the given code when the fiber is woken up
+         */
+        void wake(Proc proc, void* userData);
+
+        /**
+         * Schedule this fiber for execution, and runs the given code when the fiber is woken up
+         */
+        void wake(const StdFunctionProc& proc);
+
     private:
         Fiber* pCurrentFiber = nullptr;
 
         friend class Fiber;
     };
-
-    using FiberProc = void(*)(Cider::FiberHandle& fiber, void* userData);
-    using StdFunctionProc = std::function<void(Cider::FiberHandle&)>;
 
     class Fiber {
     public:
@@ -43,16 +92,18 @@ namespace Cider {
          * @param proc function called when the fiber is switched into
          * @param userData data available to the fiber. User is responsible for freeing it up
          * @param stack memory to use for the stack of this fiber
+         * @param pScheduler pointer to the scheduler to use for this fiber, by default 'getDefaultScheduler()'
          */
-        Fiber(FiberProc proc, void* userData, std::span<char> stack);
+        Fiber(FiberProc proc, void* userData, std::span<char> stack, Scheduler& scheduler = getDefaultScheduler());
 
         /**
          * Creates a new fiber, that will call 'proc' when switched to.
          * 'stack' represents some memory to use for the stack of that fiber.
          * @param proc function called when the fiber is switched into
          * @param stack memory to use for the stack of this fiber
+         * @param pScheduler pointer to the scheduler to use for this fiber, by default 'getDefaultScheduler()'
          */
-        Fiber(StdFunctionProc proc, std::span<char> stack);
+        Fiber(StdFunctionFiberProc proc, std::span<char> stack, Scheduler& scheduler = getDefaultScheduler());
 
         /**
          * Sets the current execution context to this fiber.
@@ -73,14 +124,17 @@ namespace Cider {
         /**
          * Similar to 'switchTo', but executes the given function on top of the current fiber
          */
-        void switchToWithOnTop(StdFunctionProc onTop);
+        void switchToWithOnTop(StdFunctionFiberProc onTop);
 
         /**
          * Switches to this fiber, and throws a CancelledException through the fiber.
          */
         // TODO: requires exception support! void cancel();
 
+        Cider::FiberHandle* getHandlePtr();
+
     private:
+        Scheduler& scheduler;
         Cider::FiberProc proc; // function to execute
         void* pUserData = nullptr; // pointer to user data
         std::span<char> stack; // user provided stack

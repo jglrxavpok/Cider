@@ -18,7 +18,7 @@ add_executable(
         fiber_local_storage.cpp
 
         # Fiber synchronisation primitives
-        # TODO
+        fiber_mutex.cpp
 )
 target_include_directories(Tests PUBLIC "../include")
 target_link_libraries(

@@ -77,3 +77,37 @@ TEST(SimpleFiber, StdFunction) {
 
     EXPECT_EXIT(fiber.switchTo(), ::testing::ExitedWithCode(-1), "Reached bottom of fiber callstack"); // fiber has reached bottom of callstack, returning is not allowed at this point
 }
+
+TEST(SimpleFiber, FiberReuse) {
+    alignas(16) char stack[4096];
+    Data myData;
+
+    auto root = [&myData](Cider::FiberHandle& fiber) {
+        while(true) {
+            fiber.yield();
+        }
+    };
+    Cider::Fiber fiber { root, std::span(stack) };
+
+    EXPECT_EQ(myData.number, 42);
+    // task 1
+    fiber.switchToWithOnTop([&](Cider::FiberHandle& fiber) {
+        myData.number = 3;
+        fiber.yield();
+        myData.number = 5;
+    });
+    EXPECT_EQ(myData.number, 3);
+    fiber.switchTo();
+    EXPECT_EQ(myData.number, 5);
+    // task 2
+    fiber.switchToWithOnTop([&](Cider::FiberHandle& fiber) {
+        myData.number = 4;
+        fiber.yield();
+        myData.number = 6;
+    });
+    EXPECT_EQ(myData.number, 4);
+    fiber.switchTo();
+    EXPECT_EQ(myData.number, 6);
+
+    EXPECT_NO_FATAL_FAILURE(fiber.switchTo()); // should not crash
+}
