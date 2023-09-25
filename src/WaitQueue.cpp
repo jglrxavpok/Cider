@@ -27,4 +27,17 @@ namespace Cider {
             lock.unlock();
         });
     }
+
+    void WaitQueue::notifyAll() {
+        lock.lock();
+        while(!waitList.empty()) {
+            Cider::FiberHandle* nextToRun = waitList.front();
+            waitList.pop_front();
+            nextToRun->wake([this]() {
+                lock.unlock();
+            });
+            lock.lock();
+        }
+        lock.unlock();
+    }
 }

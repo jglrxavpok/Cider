@@ -24,9 +24,15 @@ namespace Cider {
 
         /**
          * Pops the continuation at the start of the queue and executes it.
-         * Thread-safe & atomic
+         * Thread-safe
          */
         void notifyOne();
+
+        /**
+         * Pops the continuation at the start of the queue and executes it.
+         * Thread-safe
+         */
+        void notifyAll();
 
     private:
         SpinLock lock;
