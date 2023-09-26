@@ -93,10 +93,10 @@ extern "C" void swap_context(Context* pCurrent, Context* pToSwitchTo);
  *  resuming the context by calling the given function in 'func'
  * When returning, that function will return to the context inside 'pToSwitchTo'
  */
-extern "C" void swap_context_on_top(Context* pCurrent, Context* pToSwitchTo, void (*func)());
+extern "C" void swap_context_on_top(Context* pCurrent, Context* pToSwitchTo, void* userData, void (*func)(void*));
 ```
 
-`context.hpp` (implementation `context.cpp`) provides a few helpers for C++, most notably support for std::function and
+`context.hpp` (implementation `context.cpp`) provides a few helpers for C++ too, most notably support for std::function and
 their captures.
 
 
@@ -113,7 +113,7 @@ Cider has 3 layers, with each layer building on top of the other:
 
 3. Fiber-aware synchronisation primitives:
     Locks, condition variables, latches for fibers.
-    - TODO
+    - `include\Mutex.h` & `include\WaitQueue.h`
 
 4. Fiber scheduling
     Cider exposes the `Scheduler` base class that can be extended to provide your own scheduler. By default, fibers start 

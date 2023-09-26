@@ -8,6 +8,10 @@
 #include <array>
 #include <cider/context.h>
 
+#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+#define CIDER_ASAN
+#endif
+
 namespace Cider {
     class Fiber;
     class FiberHandle;
@@ -142,6 +146,10 @@ namespace Cider {
 
         Context parentContext; // context to resume to when execution stops or yields
         Context currentContext; // context to resume when switching into this fiber
+
+#ifdef CIDER_ASAN
+
+#endif
 
         friend class FiberHandle;
     };

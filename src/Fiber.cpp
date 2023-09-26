@@ -9,6 +9,16 @@
 #include <memory>
 #include <utility>
 
+// Based on https://graphitemaster.github.io/fibers/#debuggers
+// These macros are defined by GCC and/or clang
+#ifdef CIDER_ASAN
+extern "C" {
+    // Check out sanitizer/asan-interface.h in compiler-rt for documentation.
+    void __sanitizer_start_switch_fiber(void **fake_stack_save, const void *bottom, size_t size);
+    void __sanitizer_finish_switch_fiber(void *fake_stack_save, const void **bottom_old, size_t *size_old);
+}
+#endif
+
 namespace Cider {
 
     static char InvalidContextStack[64] = {0};
@@ -25,6 +35,28 @@ namespace Cider {
 
     static GreedyScheduler* defaultScheduler = new GreedyScheduler;
 
+
+    static void swapContextInternal(Context* current, Context* switchTo, std::span<char> stack, std::function<void()> onTop) {
+#ifdef CIDER_ASAN
+        if(stack.empty()) {
+            // for swaps to non-fiber code
+            __sanitizer_start_switch_fiber(nullptr, nullptr, 0);
+            swapContextOnTop(current, switchTo, [&]() {
+                __sanitizer_finish_switch_fiber(nullptr, nullptr, nullptr);
+            });
+        } else {
+            void* fakeStackSave = nullptr;
+            __sanitizer_start_switch_fiber(&fakeStackSave, stack.data(), stack.size());
+            swapContextOnTop(current, switchTo, [=]() {
+                __sanitizer_finish_switch_fiber(fakeStackSave, nullptr, nullptr);
+                onTop();
+            });
+        }
+#else
+        swap_context(current, switchTo);
+#endif
+    }
+
     Scheduler& getDefaultScheduler() {
         return *defaultScheduler;
     }
@@ -40,16 +72,18 @@ namespace Cider {
         currentContext.rip = (Register) FiberBottomOfCallstack;
         currentContext.rsp = (Register) (stack.data() + stack.size() - 8);
 
-        swapContextOnTop(&parentContext, &currentContext, [&]() {
+        currentContext.rsp = currentContext.rsp & ~0xFull;
+
+        swapContextInternal(&parentContext, &currentContext, stack, [&]() {
             FiberHandle handle;
             handle.pCurrentFiber = this;
             this->pFiberHandle = &handle;
 
             // setups stack with a fiber handle
-            swap_context(&currentContext, &parentContext); // go back to constructor
+            handle.yield(); // go back to constructor
 
             this->proc(*pFiberHandle, pUserData);
-            swap_context(&currentContext, &parentContext); // execution finished: return to parent.
+            handle.yield(); // execution finished: return to parent.
             // going past that line goes into FiberBottomOfCallstack
         });
     }
@@ -63,17 +97,17 @@ namespace Cider {
     : Fiber(stdFunctionProc, new StdFunctionFiberProc(std::move(proc)) /* this instance will be deleted inside stdFunctionProc */, stack, scheduler) {}
 
     void Fiber::switchTo() {
-        swap_context(&parentContext, &currentContext);
+        swapContextInternal(&parentContext, &currentContext, stack, [](){});
     }
 
     void Fiber::switchToWithOnTop(FiberProc onTopFunc, void* onTopUserData) {
-        swapContextOnTop(&parentContext, &currentContext, [this, onTopFunc, onTopUserData]() {
+        swapContextInternal(&parentContext, &currentContext, stack, [this, onTopFunc, onTopUserData]() {
             onTopFunc(*pFiberHandle, onTopUserData);
         });
     }
 
     void Fiber::switchToWithOnTop(StdFunctionFiberProc onTop) {
-        swapContextOnTop(&parentContext, &currentContext, [this, onTopProc = std::move(onTop)]() {
+        swapContextInternal(&parentContext, &currentContext, stack, [this, onTopProc = std::move(onTop)]() {
             onTopProc(*pFiberHandle);
         });
     }
@@ -83,17 +117,17 @@ namespace Cider {
     }
 
     void FiberHandle::yield() {
-        swap_context(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext);
+        swapContextInternal(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext, {}, [](){});
     }
 
     void FiberHandle::yieldOnTop(Proc onTopProc, void* onTopUserData) {
-        swapContextOnTop(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext, [this, onTopProc, onTopUserData]() {
+        swapContextInternal(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext, {}, [this, onTopProc, onTopUserData]() {
             onTopProc(onTopUserData);
         });
     }
 
     void FiberHandle::yieldOnTop(StdFunctionProc onTop) {
-        swapContextOnTop(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext, [this, onTopProc = std::move(onTop)]() {
+        swapContextInternal(&pCurrentFiber->currentContext, &pCurrentFiber->parentContext, {}, [this, onTopProc = std::move(onTop)]() {
             onTopProc();
         });
     }
