@@ -16,6 +16,7 @@ add_executable(
         # Fibers
         simple_fiber.cpp
         fiber_local_storage.cpp
+        growing_stack.cpp
 
         # Fiber synchronisation primitives
         fiber_mutex.cpp

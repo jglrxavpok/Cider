@@ -14,6 +14,7 @@ add_library(cider
         src/context_masm.asm
         src/context.cpp
         src/Fiber.cpp
+        src/GrowingStack.cpp
         src/Mutex.cpp
         src/WaitQueue.cpp
 

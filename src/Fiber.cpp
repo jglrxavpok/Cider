@@ -41,8 +41,9 @@ namespace Cider {
         if(stack.empty()) {
             // for swaps to non-fiber code
             __sanitizer_start_switch_fiber(nullptr, nullptr, 0);
-            swapContextOnTop(current, switchTo, [&]() {
+            swapContextOnTop(current, switchTo, [=]() {
                 __sanitizer_finish_switch_fiber(nullptr, nullptr, nullptr);
+                onTop();
             });
         } else {
             void* fakeStackSave = nullptr;
@@ -53,7 +54,9 @@ namespace Cider {
             });
         }
 #else
-        swap_context(current, switchTo);
+        swapContextOnTop(current, switchTo, [=]() {
+            onTop();
+        });
 #endif
     }
 
