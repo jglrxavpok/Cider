@@ -11,11 +11,29 @@
 struct Impl {
     void* allocAddress = nullptr;
     SIZE_T requestedSize = 0;
+    SIZE_T totalSize = 0;
 
     explicit Impl(std::size_t maxSize) : requestedSize(maxSize) {
-        allocAddress = VirtualAlloc(nullptr, maxSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        SYSTEM_INFO systemInfo;
+        GetSystemInfo(&systemInfo);
+        DWORD pageSize = systemInfo.dwPageSize;
+
+        totalSize = maxSize + pageSize;
+        allocAddress = VirtualAlloc(nullptr, totalSize, MEM_RESERVE, PAGE_NOACCESS);
+
         if(!allocAddress) {
             throw std::invalid_argument("Could not allocate virtual stack");
+        }
+
+        // allocate a no-access page at the top of the stack to catch stack overflows
+        void* protectionPage = VirtualAlloc(allocAddress, pageSize, MEM_COMMIT, PAGE_NOACCESS);
+        if(!protectionPage) {
+            throw std::invalid_argument("Could not allocate protection page");
+        }
+
+        void* committed = VirtualAlloc((void*)((std::size_t)allocAddress + pageSize), requestedSize, MEM_COMMIT, PAGE_READWRITE);
+        if(!committed) {
+            throw std::invalid_argument("Could not commit stack memory");
         }
     }
 
@@ -28,7 +46,7 @@ struct Impl {
     }
 
     std::span<char> asSpan() {
-        return std::span{ (char*)allocAddress, requestedSize };
+        return std::span{ (char*)allocAddress, totalSize };
     }
 };
 #else
