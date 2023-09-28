@@ -12,11 +12,12 @@ struct Impl {
     void* allocAddress = nullptr;
     SIZE_T requestedSize = 0;
     SIZE_T totalSize = 0;
+    DWORD pageSize = 0;
 
     explicit Impl(std::size_t maxSize) : requestedSize(maxSize) {
         SYSTEM_INFO systemInfo;
         GetSystemInfo(&systemInfo);
-        DWORD pageSize = systemInfo.dwPageSize;
+        pageSize = systemInfo.dwPageSize;
 
         totalSize = maxSize + pageSize;
         allocAddress = VirtualAlloc(nullptr, totalSize, MEM_RESERVE, PAGE_NOACCESS);
@@ -46,7 +47,7 @@ struct Impl {
     }
 
     std::span<char> asSpan() {
-        return std::span{ (char*)allocAddress, totalSize };
+        return std::span{ (char*)allocAddress+pageSize, requestedSize };
     }
 };
 #else
