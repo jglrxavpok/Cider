@@ -55,8 +55,8 @@ TEST(GrowingStack, DetectStackOverflow) {
     Cider::GrowingStack stack{ pageSize };
 
     stack.withStack([&]() {
-        char* accessInValidPage = stack.asSpan().data() + pageSize;
-        char* accessInGuardPage = stack.asSpan().data();
+        char* accessInValidPage = stack.asSpan().data();
+        char* accessInGuardPage = stack.asSpan().data() - pageSize;
         strcpy(accessInValidPage, "Hello world!");
         EXPECT_NO_THROW(printf("Valid: %s\n", accessInValidPage));
         EXPECT_TRUE(triggerAccessViolation(accessInGuardPage));
