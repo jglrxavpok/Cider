@@ -74,6 +74,8 @@ namespace Cider {
         currentContext = {0};
         currentContext.rip = (Register) FiberBottomOfCallstack;
         currentContext.rsp = (Register) (stack.data() + stack.size() - 8);
+        currentContext.stackLowAddress = reinterpret_cast<Address>(stack.data());
+        currentContext.stackHighAddress = reinterpret_cast<Address>(stack.data() + stack.size());
 
         currentContext.rsp = currentContext.rsp & ~0xFull;
 

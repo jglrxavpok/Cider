@@ -27,7 +27,7 @@ static void fiberProc(Cider::FiberHandle& fiber, void* userData) {
 }
 
 TEST(SimpleFiber, FunctionPointers) {
-    alignas(16) char stack[4096] = {0};
+    alignas(16) char stack[1024*8] = {0};
     Data myData;
     Cider::Fiber fiber { fiberProc, &myData, std::span(stack) };
 
@@ -51,7 +51,7 @@ TEST(SimpleFiber, FunctionPointers) {
 }
 
 TEST(SimpleFiber, StdFunction) {
-    alignas(16) char stack[4096];
+    alignas(16) char stack[1024*8];
     Data myData;
 
     auto myFunc = [&myData](Cider::FiberHandle& fiber) {
@@ -79,7 +79,7 @@ TEST(SimpleFiber, StdFunction) {
 }
 
 TEST(SimpleFiber, FiberReuse) {
-    alignas(16) char stack[4096];
+    alignas(16) char stack[1024*8];
     Data myData;
 
     auto root = [&myData](Cider::FiberHandle& fiber) {

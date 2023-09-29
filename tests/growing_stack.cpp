@@ -34,12 +34,16 @@ TEST(GrowingStack, AllocateALot) {
 #ifdef _WIN64
 #include <windows.h>
 
+static int filter(DWORD exceptionCode) {
+    return exceptionCode  == EXCEPTION_ACCESS_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH;
+}
+
 // try and __try cannot be in the same function (MSVC limitation)
 static bool triggerAccessViolation(char* accessInGuardPage) {
     bool triggeredAccessViolation = false;
     __try {
         printf("Invalid: %s", accessInGuardPage); // reading inside guard page should trigger an access violation
-    } __except(GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+    } __except(filter(GetExceptionCode())) {
         triggeredAccessViolation = true;
         printf("ACCESS VIOLATION!");
     }

@@ -36,6 +36,15 @@ get_context PROC
     movaps [rcx + 8 * 10 + 16 * 8], xmm14
     movaps [rcx + 8 * 10 + 16 * 9], xmm15
 
+    ; TIB information
+    ; stack low address (top of stack)
+    mov r10, gs:[010h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 0], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, gs:[008h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 1], r10
+
     ret
 get_context ENDP
 
@@ -67,6 +76,15 @@ set_context PROC
     movaps xmm13, [rcx + 8 * 10 + 16 * 7]
     movaps xmm14, [rcx + 8 * 10 + 16 * 8]
     movaps xmm15, [rcx + 8 * 10 + 16 * 9]
+
+    ; restore TIB information
+    ; stack low address (top of stack)
+    mov r10, [rcx + 8 * 10 + 16 * 10 + 8 * 0]
+    mov gs:[010h], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, [rcx + 8 * 10 + 16 * 10 + 8 * 1]
+    mov gs:[008h], r10
 
     jmp r11 ; go to return address of get_context
 set_context ENDP
@@ -103,6 +121,15 @@ swap_context PROC
     movaps [rcx + 8 * 10 + 16 * 8], xmm14
     movaps [rcx + 8 * 10 + 16 * 9], xmm15
 
+    ; TIB information
+    ; stack low address (top of stack)
+    mov r10, gs:[010h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 0], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, gs:[008h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 1], r10
+
     ; current context is now fully saved
     ; switch to context in RDX
     mov r11, [rdx + 0 * 0] ; rsi
@@ -128,6 +155,15 @@ swap_context PROC
     movaps xmm13, [rdx + 8 * 10 + 16 * 7]
     movaps xmm14, [rdx + 8 * 10 + 16 * 8]
     movaps xmm15, [rdx + 8 * 10 + 16 * 9]
+
+    ; restore TIB information
+    ; stack low address (top of stack)
+    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 0]
+    mov gs:[010h], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 1]
+    mov gs:[008h], r10
 
     jmp r11 ; switch execution to target context
 swap_context ENDP
@@ -168,6 +204,15 @@ swap_context_on_top PROC
     movaps [rcx + 8 * 10 + 16 * 8], xmm14
     movaps [rcx + 8 * 10 + 16 * 9], xmm15
 
+    ; TIB information
+    ; stack low address (top of stack)
+    mov r10, gs:[010h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 0], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, gs:[008h]
+    mov [rcx + 8 * 10 + 16 * 10 + 8 * 1], r10
+
     ; current context is now fully saved
     ; switch to context in RDX
     mov r11, [rdx + 0 * 0] ; rsi
@@ -193,6 +238,15 @@ swap_context_on_top PROC
     movaps xmm13, [rdx + 8 * 10 + 16 * 7]
     movaps xmm14, [rdx + 8 * 10 + 16 * 8]
     movaps xmm15, [rdx + 8 * 10 + 16 * 9]
+
+    ; restore TIB information
+    ; stack low address (top of stack)
+    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 0]
+    mov gs:[010h], r10
+
+    ; stack high address (bottom of stack)
+    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 1]
+    mov gs:[008h], r10
 
     mov rcx, r8 ; argument of function on top will be user data
     push r11

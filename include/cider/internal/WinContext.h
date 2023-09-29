@@ -8,6 +8,7 @@
 #include <cstdint>
 
 using Register = std::uintptr_t;
+using Address = std::uint64_t;
 
 // https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170
 struct WinContext {
@@ -37,4 +38,8 @@ struct WinContext {
     __m128i xmm13;
     __m128i xmm14;
     __m128i xmm15;
+
+    // TIB information
+    Address stackLowAddress;
+    Address stackHighAddress;
 };
