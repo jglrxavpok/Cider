@@ -20,6 +20,7 @@ set(Cider-Sources
         src/context_masm.asm
         src/context.cpp
         src/Fiber.cpp
+        src/FiberTLS.cpp
         src/GrowingStack.cpp
         src/Mutex.cpp
         src/WaitQueue.cpp

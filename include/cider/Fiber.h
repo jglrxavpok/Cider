@@ -89,6 +89,20 @@ namespace Cider {
 
     class Fiber {
     public:
+        using FiberFrontierCallback = void (*)(Fiber*);
+
+        /**
+         * If not nullptr, this callback is called when code enters a fiber,
+         *  no matter how (starting, yielding to another, or finishing a fiber and returning to the parent).
+         */
+        static FiberFrontierCallback OnFiberEnter;
+
+        /**
+         * If not nullptr, this callback is called when code exits a fiber,
+         *  no matter how (finishing, yielding to another, or waiting).
+         */
+        static FiberFrontierCallback OnFiberExit;
+
         /**
          * Creates a new fiber, that will call 'proc' when switched to.
          * 'userData' is used to provide data to the fiber. User is responsible for freeing it up.
@@ -143,13 +157,20 @@ namespace Cider {
         void* pUserData = nullptr; // pointer to user data
         std::span<char> stack; // user provided stack
         FiberHandle* pFiberHandle = nullptr; // fiber handle, stored inside stack directly
+        Fiber* pParent = nullptr;
 
         Context parentContext; // context to resume to when execution stops or yields
         Context currentContext; // context to resume when switching into this fiber
 
+        void swapContextInternalEntering(std::span<char> stack, std::function<void()> onTop);
+        void swapContextInternalExiting(std::span<char> stack, std::function<void()> onTop);
+        void swapContextInternal(Context* current, Context* switchTo, std::span<char> stack, std::function<void()> onTop);
+
 #ifdef CIDER_ASAN
 
 #endif
+
+        static Fiber*& getCurrentFiberTLS();
 
         friend class FiberHandle;
     };
