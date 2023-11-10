@@ -8,8 +8,14 @@
 #include <array>
 #include <cider/context.h>
 
-#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
-#define CIDER_ASAN
+#if defined(__clang__)
+    #if __has_feature(address_sanitizer)
+        #define CIDER_ASAN
+    #endif
+#else
+    #if defined(__SANITIZE_ADDRESS__)
+        #define CIDER_ASAN
+    #endif
 #endif
 
 namespace Cider {
