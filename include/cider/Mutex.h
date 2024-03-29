@@ -21,6 +21,7 @@ namespace Cider {
         ~Mutex();
 
         void lock(Cider::FiberHandle& fiber);
+        void blockingLock();
         void unlock();
 
     private:
@@ -40,6 +41,23 @@ namespace Cider {
          */
         explicit LockGuard(Cider::FiberHandle& fiber, Mutex& mutex);
         ~LockGuard();
+
+    private:
+        Mutex& mutex;
+    };
+
+    /**
+     * RAII construct to lock mutex at this object construction, and unlock on its destruction
+     */
+    class BlockingLockGuard {
+    public:
+        /**
+         * Constructs a lock guard, and attempts to lock the given mutex
+         * @param fiber fiber to yield if lock fails
+         * @param mutex mutex to lock
+         */
+        explicit BlockingLockGuard(Mutex& mutex);
+        ~BlockingLockGuard();
 
     private:
         Mutex& mutex;
