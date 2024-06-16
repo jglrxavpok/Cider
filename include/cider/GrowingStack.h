@@ -20,6 +20,11 @@ namespace Cider {
         explicit GrowingStack(std::size_t maxSize);
         ~GrowingStack();
 
+        GrowingStack(const GrowingStack&) = delete;
+        GrowingStack(GrowingStack&&) = delete;
+        GrowingStack& operator=(const GrowingStack&) = delete;
+        GrowingStack& operator=(GrowingStack&&) = delete;
+
         /**
          * Runs the given function, with machinery necessary to grow the stack as needed.
          * @param f function to run while using this stack

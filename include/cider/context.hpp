@@ -11,4 +11,4 @@
 #include <cider/context.h>
 #include <functional>
 
-void swapContextOnTop(Context* pCurrent, Context* pToSwitchTo, std::function<void()> onTop);
+void swapContextOnTop(Context* pCurrent, Context* pToSwitchTo, std::function<void(Context*)> onTop);

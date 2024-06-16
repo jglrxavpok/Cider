@@ -19,6 +19,11 @@ extern "C" {
 }
 #endif
 
+#ifdef _WIN64
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace Cider {
     /*static*/ void (*Fiber::OnFiberEnter)(Fiber *) = nullptr;
 
@@ -48,13 +53,24 @@ namespace Cider {
         parentContext = InvalidContext;
         currentContext = {0};
         currentContext.rip = (Register) FiberBottomOfCallstack;
-        currentContext.rsp = (Register) (stack.data() + stack.size() - 8);
-        currentContext.stackLowAddress = reinterpret_cast<Address>(stack.data());
         currentContext.stackHighAddress = reinterpret_cast<Address>(stack.data() + stack.size());
+        currentContext.stackLowAddress = reinterpret_cast<Address>(stack.data());
+        currentContext.deallocationStack = reinterpret_cast<Address>(stack.data()-4096 /*TODO: real page size?*/);
+        currentContext.guaranteedStackBytes = 0;
 
+
+        // seems to work for PIX callstack ???
+        currentContext.stackHighAddress = reinterpret_cast<Address>(stack.data() + stack.size()-8);
+        currentContext.rsp = currentContext.stackHighAddress;
+
+        currentContext.rsp -= sizeof(Context);
+        currentContext.rsp -= 8; // return address
+        currentContext.rsp -= 8*4; // parameter space
+        static_assert(sizeof(Context) == 272); // don't forget to change context_masm.asm if WinContext changes
         currentContext.rsp = currentContext.rsp & ~0xFull;
+        *(Context*)currentContext.rsp = currentContext;
 
-        swapContextInternalEntering(stack, [&]() {
+        swapContextInternalEntering(stack, [this]() {
             FiberHandle handle;
             handle.pCurrentFiber = this;
             this->pFiberHandle = &handle;
@@ -145,11 +161,12 @@ namespace Cider {
             OnFiberExit(getCurrentFiberTLS());
         }
         pParent = getCurrentFiberTLS();
-        swapContextInternal(&parentContext, &currentContext, stack, [this, onTop]() {
+        swapContextInternal(nullptr, &currentContext, stack, [this, onTop](Context* fromContext) {
             if(OnFiberEnter) {
                 OnFiberEnter(this);
             }
             getCurrentFiberTLS() = this;
+            this->parentContext = *fromContext;
             onTop();
         });
     }
@@ -158,16 +175,17 @@ namespace Cider {
         if(OnFiberExit) {
             OnFiberExit(this);
         }
-        swapContextInternal(&currentContext, &parentContext, stack, [this, onTop]() {
+        swapContextInternal(&currentContext, &parentContext, stack, [this, onTop](Context* fromContext) {
             if(OnFiberEnter && pParent) {
                 OnFiberEnter(pParent);
             }
             getCurrentFiberTLS() = pParent;
+            this->currentContext = *fromContext;
             onTop();
         });
     }
 
-    void Fiber::swapContextInternal(Context *current, Context *switchTo, std::span<char> stack, std::function<void()> onTop) {
+    void Fiber::swapContextInternal(Context *current, Context *switchTo, std::span<char> stack, std::function<void(Context*)> onTop) {
 #ifdef CIDER_ASAN
         if(stack.empty()) {
             // for swaps to non-fiber code
@@ -185,8 +203,8 @@ namespace Cider {
             });
         }
 #else
-        swapContextOnTop(current, switchTo, [=]() {
-            onTop();
+        swapContextOnTop(current, switchTo, [this, onTop](Context* parentContext) {
+            onTop(parentContext);
         });
 #endif
     }

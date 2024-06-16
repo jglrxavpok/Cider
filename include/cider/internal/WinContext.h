@@ -42,4 +42,10 @@ struct WinContext {
     // TIB information
     Address stackLowAddress;
     Address stackHighAddress;
+    Address deallocationStack;
+    Register guaranteedStackBytes;
+
+    // need MMX control word
+    // need MMX(?) Status control word
+    // need x87 control word
 };

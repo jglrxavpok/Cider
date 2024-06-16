@@ -16,15 +16,23 @@ namespace Cider {
     }
 
     void Mutex::lock(Cider::FiberHandle& fiber) {
-        while(acquired.test_and_set() /* while already locked */) {
+        while(true) {
+            //BlockingLockGuard g { waitQueueLock };
+            std::unique_lock g { waitQueueLock };
+
+            // try locking
+            if(!acquired.test_and_set(std::memory_order_acquire)) {
+                return;
+            }
+
             // mutex is already locked, ask to be woken up once lock is free
-            waitQueue.suspendAndWait(fiber);
+            waitQueue.suspendAndWait(g, fiber);
             // will yield until lock is free, and next iteration will attempt to get the lock again
         }
     }
 
     void Mutex::blockingLock() {
-        while(acquired.test_and_set() /* while already locked */) {
+        while(acquired.test_and_set(std::memory_order_acquire) /* while already locked */) {
             // mutex is already locked, ask to be woken up once lock is free
             std::this_thread::yield();
             // will yield until lock is free, and next iteration will attempt to get the lock again
@@ -32,7 +40,9 @@ namespace Cider {
     }
 
     void Mutex::unlock() {
-        acquired.clear();
+        //Cider::BlockingLockGuard g { waitQueueLock };
+        std::unique_lock g { waitQueueLock };
+        acquired.clear(std::memory_order_release);
         waitQueue.notifyOne();
     }
 
@@ -44,11 +54,19 @@ namespace Cider {
         mutex.unlock();
     }
 
-    BlockingLockGuard::BlockingLockGuard(Mutex& _mutex): mutex(_mutex) {
+    BlockingMutexGuard::BlockingMutexGuard(Mutex& _mutex): mutex(_mutex) {
         mutex.blockingLock();
     }
 
-    BlockingLockGuard::~BlockingLockGuard() {
+    BlockingMutexGuard::~BlockingMutexGuard() {
         mutex.unlock();
+    }
+
+    BlockingLockGuard::BlockingLockGuard(SpinLock& _lock): lock(_lock) {
+        lock.lock();
+    }
+
+    BlockingLockGuard::~BlockingLockGuard() {
+        lock.unlock();
     }
 }

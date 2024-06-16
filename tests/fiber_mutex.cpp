@@ -121,9 +121,9 @@ TEST(FiberMutex, VerifyScheduling) {
 }
 
 TEST(FiberMutex, WithGreedyScheduler) {
-    alignas(16) char stack1[4096];
-    alignas(16) char stack2[4096];
-    alignas(16) char stack3[4096];
+    alignas(16) char stack1[5*4096];
+    alignas(16) char stack2[5*4096];
+    alignas(16) char stack3[5*4096];
 
     bool lockedForWrite = false;
     bool write1 = false;

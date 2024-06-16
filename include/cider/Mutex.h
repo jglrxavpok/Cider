@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <cider/Fiber.h>
 #include <cider/WaitQueue.h>
 
@@ -26,6 +27,8 @@ namespace Cider {
 
     private:
         WaitQueue waitQueue;
+        //SpinLock waitQueueLock;
+        std::mutex waitQueueLock;
         std::atomic_flag acquired;
     };
 
@@ -49,17 +52,32 @@ namespace Cider {
     /**
      * RAII construct to lock mutex at this object construction, and unlock on its destruction
      */
+    class BlockingMutexGuard {
+    public:
+        /**
+         * Constructs a lock guard, and attempts to lock the given mutex
+         * @param mutex mutex to lock
+         */
+        explicit BlockingMutexGuard(Mutex& mutex);
+        ~BlockingMutexGuard();
+
+    private:
+        Mutex& mutex;
+    };
+
+    /**
+     * RAII construct a spin lock at this object construction, and unlock on its destruction
+     */
     class BlockingLockGuard {
     public:
         /**
          * Constructs a lock guard, and attempts to lock the given mutex
-         * @param fiber fiber to yield if lock fails
-         * @param mutex mutex to lock
+         * @param lock mutex to lock
          */
-        explicit BlockingLockGuard(Mutex& mutex);
+        explicit BlockingLockGuard(SpinLock& mutex);
         ~BlockingLockGuard();
 
     private:
-        Mutex& mutex;
+        SpinLock& lock;
     };
 }
