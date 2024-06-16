@@ -5,5 +5,6 @@
 #pragma once
 
 #ifndef CIDER_ASSERT
+#include <cassert>
 #define CIDER_ASSERT(b, text) assert(b)
 #endif

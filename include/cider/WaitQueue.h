@@ -22,18 +22,17 @@ namespace Cider {
          *
          * 'lock' is used to synchronise accesses to the internal queue. Expected to be already locked when entering this function!
          */
-        void suspendAndWait(SpinLock& lock, Cider::FiberHandle& toSuspend);
-        void suspendAndWait(std::unique_lock<std::mutex>& lock, Cider::FiberHandle& toSuspend);
+        void suspendAndWait(UniqueSpinLock& lock, Cider::FiberHandle& toSuspend);
 
         /**
          * Pops the continuation at the start of the queue and executes it.
          */
-        void notifyOne();
+        void notifyOne(UniqueSpinLock& lock);
 
         /**
          * Pops the continuation at the start of the queue and executes it.
          */
-        void notifyAll();
+        void notifyAll(UniqueSpinLock& lock);
 
     private:
         std::deque<Cider::FiberHandle*> waitList;

@@ -27,8 +27,7 @@ namespace Cider {
 
     private:
         WaitQueue waitQueue;
-        //SpinLock waitQueueLock;
-        std::mutex waitQueueLock;
+        SpinLock waitQueueLock;
         std::atomic_flag acquired;
     };
 

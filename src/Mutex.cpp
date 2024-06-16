@@ -17,8 +17,7 @@ namespace Cider {
 
     void Mutex::lock(Cider::FiberHandle& fiber) {
         while(true) {
-            //BlockingLockGuard g { waitQueueLock };
-            std::unique_lock g { waitQueueLock };
+            UniqueSpinLock g { waitQueueLock };
 
             // try locking
             if(!acquired.test_and_set(std::memory_order_acquire)) {
@@ -40,10 +39,9 @@ namespace Cider {
     }
 
     void Mutex::unlock() {
-        //Cider::BlockingLockGuard g { waitQueueLock };
-        std::unique_lock g { waitQueueLock };
+        UniqueSpinLock g { waitQueueLock };
         acquired.clear(std::memory_order_release);
-        waitQueue.notifyOne();
+        waitQueue.notifyOne(g);
     }
 
     LockGuard::LockGuard(Cider::FiberHandle& fiber, Mutex& _mutex): mutex(_mutex) {

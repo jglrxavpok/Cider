@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cider/internal/config.h>
 
 namespace Cider {
     /**
@@ -28,5 +29,40 @@ namespace Cider {
 
     private:
         std::atomic_flag acquired;
+    };
+
+    /**
+     * Equivalent of std::unique_lock but for SpinLock
+     * The main difference with LockGuard & BlockingLockGuard is that destroying this object only unlocks if the lock was owned.
+     * (Necessary to make WaitQueue work)
+     */
+    class UniqueSpinLock {
+    public:
+        explicit UniqueSpinLock(SpinLock& lock): lockRef(lock) {
+            lockRef.lock();
+            owning = true;
+        }
+
+        void lock() {
+            CIDER_ASSERT(!owning, "UniqueSpinLock must not already own lock when calling lock explicitely");
+            lockRef.lock();
+            owning = true;
+        }
+
+        void unlock() {
+            CIDER_ASSERT(owning, "UniqueSpinLock must already own lock when calling unlock");
+            lockRef.unlock();
+            owning = false;
+        }
+
+        ~UniqueSpinLock() {
+            if(owning) {
+                unlock();
+            }
+        }
+
+    private:
+        SpinLock& lockRef;
+        bool owning = false;
     };
 }

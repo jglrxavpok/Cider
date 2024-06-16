@@ -7,41 +7,34 @@
 #include <cider/Fiber.h>
 
 namespace Cider {
-    void WaitQueue::suspendAndWait(SpinLock& lock, Cider::FiberHandle& toSuspend) {
-        waitList.push_back(&toSuspend);
-        toSuspend.yieldOnTop([&lock]() {
-            lock.unlock();
-        });
-    }
-    void WaitQueue::suspendAndWait(std::unique_lock<std::mutex>& lock, Cider::FiberHandle& toSuspend) {
+    void WaitQueue::suspendAndWait(UniqueSpinLock& lock, Cider::FiberHandle& toSuspend) {
         waitList.push_back(&toSuspend);
         toSuspend.yieldOnTop([&lock]() {
             lock.unlock();
         });
     }
 
-    void WaitQueue::notifyOne() {
+    void WaitQueue::notifyOne(UniqueSpinLock& lock) {
         if(waitList.empty()) {
-          //  lock.unlock();
             return;
         }
 
         Cider::FiberHandle* nextToRun = waitList.front();
         waitList.pop_front();
-        nextToRun->wake([]() {
-            //lock.unlock();
+        nextToRun->wake([&lock]() {
+            lock.unlock();
         });
     }
 
-    void WaitQueue::notifyAll() {
+    void WaitQueue::notifyAll(UniqueSpinLock& lock) {
         while(!waitList.empty()) {
             Cider::FiberHandle* nextToRun = waitList.front();
             waitList.pop_front();
-            nextToRun->wake([]() {
-               // lock.unlock();
+            nextToRun->wake([&lock]() {
+                lock.unlock();
             });
-            //lock.lock();
+            lock.lock();
         }
-        //lock.unlock();
+        lock.unlock();
     }
 }
