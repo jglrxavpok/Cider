@@ -106,19 +106,22 @@ set_context PROC FRAME
     jmp r11 ; go to return address of get_context
 set_context ENDP
 
-; Slightly different version of swap_context,
-;  resuming the context by calling the given function in R9, with its first argument being what is in R8
-;  When returning, that function will return to the context inside RDX
-; RCX = WinContext* current context, TODO: unused saved on stack
-; RDX = WinContext* context to switch to
-; R8  = Pointer to user data
-; R9  = Address of function to resume on.
+; Resumes the context by calling the given function in R8, with its first argument being what is in RDX
+;  When returning, that function will return to the context inside RCX
+; RCX = WinContext* context to switch to
+; RDX  = Pointer to user data
+; R8  = Address of function to resume on.
+;       This function will get the pointer to the previous context (the one calling swap_context_on_top) and the pointer to user data (in this order)
 swap_context_on_top PROC FRAME
     .endprolog
+
+    ; R11= temporary variable
+    ; R10= pointer to saved context
+
     pop r11 ; read return address
 
     sub rsp, 272 ; reserve some space for WinContext object (push WinContext)
-    mov rcx, rsp
+    mov r10, rsp
 
     ; Store current context on stack
     mov [rsp + 8*0], r11 ; store return address (RIP) of previous frame
@@ -147,47 +150,45 @@ swap_context_on_top PROC FRAME
 
     ; TIB information
     ; stack low address (top of stack)
-    mov r10, gs:[010h]
-    mov [rsp + 8 * 10 + 16 * 10 + 8 * 0], r10
+    mov r11, gs:[010h]
+    mov [rsp + 8 * 10 + 16 * 10 + 8 * 0], r11
 
     ; stack high address (bottom of stack)
-    mov r10, gs:[008h]
-    mov [rsp + 8 * 10 + 16 * 10 + 8 * 1], r10
+    mov r11, gs:[008h]
+    mov [rsp + 8 * 10 + 16 * 10 + 8 * 1], r11
 
     ; deallocation stack address (top of stack - a few pages)
-    mov r10, gs:[1478h]
-    mov [rsp + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 0], r10
+    mov r11, gs:[1478h]
+    mov [rsp + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 0], r11
 
     ; guaranteed stack bytes
-    mov r10, gs:[1748h]
-    mov [rsp + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 1], r10
+    mov r11, gs:[1748h]
+    mov [rsp + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 1], r11
 
     ; current context is now fully saved
     ; switch to new context
 
     ; restore TIB information
     ; stack low address (top of stack)
-    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 0]
-    mov gs:[010h], r10
+    mov r11, [rcx + 8 * 10 + 16 * 10 + 8 * 0]
+    mov gs:[010h], r11
 
     ; stack high address (bottom of stack)
-    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 1]
-    mov gs:[008h], r10
+    mov r11, [rcx + 8 * 10 + 16 * 10 + 8 * 1]
+    mov gs:[008h], r11
 
     ; deallocation stack address (top of stack - a few pages)
-    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 0]
-    mov gs:[1478h], r10
+    mov r11, [rcx + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 0]
+    mov gs:[1478h], r11
 
     ; guaranteed stack bytes
-    mov r10, [rdx + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 1]
-    mov gs:[1748h], r10
+    mov r11, [rcx + 8 * 10 + 16 * 10 + 8 * 2 + 8 * 1]
+    mov gs:[1748h], r11
 
-    mov rsp, [rdx + 8 * 1] ; rsp
+    mov rsp, [rcx + 8 * 1] ; rsp
     ; now stack is setup
 
     ; switch to context in RDX
-    ;mov rsp, [rsp + 8 * 1] ; rsp
-    ; RSP already done: mov rsp, [rsp + 8 * 1] ; rsp
     ; restore non volatile register
     mov r12, [rsp + 8 * 2]
     mov r13, [rsp + 8 * 3]
@@ -213,12 +214,14 @@ swap_context_on_top PROC FRAME
 
     ; execute on top function
     ; rcx = previous context
-    ; rdx = current context (to preserve accross call)
-    ; r8 = user data
-    mov r11, [rdx+ 0 * 0] ; rip
+    ; rdx = user data
+    mov r11, [rcx+ 0 * 0] ; rip
+
+    ; setup for a return instruction inside the swapped-in context
     push r11
-    mov rdx, r8
-    jmp r9
+    mov rcx, r10 ; previous context
+    ; rdx= pointer to user data
+    jmp r8 ; call ontop function
 
 
 swap_context_on_top ENDP

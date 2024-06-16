@@ -34,12 +34,12 @@ static void subFunction() {
     subFunctionStep1 = true;
 
     // yield execution to parent
-    swap_context_on_top(nullptr, &parentContext, nullptr, [](Context* parentContext, void*){subfunctionInnerContext = *parentContext;});
+    swap_context_on_top(&parentContext, nullptr, [](Context* parentContext, void*){subfunctionInnerContext = *parentContext;});
 
     EXPECT_FALSE(subFunctionStep2);
     subFunctionStep2 = true;
 
-    swap_context_on_top(nullptr, &parentContext, nullptr, [](Context* parentContext,void*){subfunctionInnerContext = *parentContext;});
+    swap_context_on_top(&parentContext, nullptr, [](Context* parentContext,void*){subfunctionInnerContext = *parentContext;});
     FAIL(); // will never execute
 }
 
@@ -54,12 +54,12 @@ TEST(SwapContext, SwapYieldAndContinue) {
 
     // swap to new context, parentContext will point to the current context,
     //  resuming execution right after the call to swap_context
-    swap_context_on_top(nullptr, &subFunctionContext, nullptr, [](Context* parent, void*){parentContext = *parent;});
+    swap_context_on_top(&subFunctionContext, nullptr, [](Context* parent, void*){parentContext = *parent;});
     EXPECT_TRUE(subFunctionStep1);
     EXPECT_FALSE(subFunctionStep2);
 
     // swap to context inside subFunction
-    swap_context_on_top(nullptr, &subfunctionInnerContext, nullptr, [](Context* parent, void*){parentContext = *parent;});
+    swap_context_on_top(&subfunctionInnerContext, nullptr, [](Context* parent, void*){parentContext = *parent;});
 
     EXPECT_TRUE(subFunctionStep1);
     EXPECT_TRUE(subFunctionStep2);
@@ -79,14 +79,14 @@ static void subFunctionWithOnTop() {
     // yield execution to parent
     EXPECT_TRUE(onTop1);
     EXPECT_FALSE(onTop2);
-    swap_context_on_top(nullptr, &parentContext, nullptr, [](Context* parent, void*){subfunctionInnerContext = *parent;});
+    swap_context_on_top(&parentContext, nullptr, [](Context* parent, void*){subfunctionInnerContext = *parent;});
     EXPECT_TRUE(onTop1);
     EXPECT_TRUE(onTop2); // 2nd on top function should have modified this
 
     EXPECT_FALSE(calledSubFunctionWithOnTop2);
     calledSubFunctionWithOnTop2 = true;
 
-    swap_context_on_top(nullptr, &parentContext, nullptr, [](Context*,void*){});
+    swap_context_on_top(&parentContext, nullptr, [](Context*,void*){});
     FAIL(); // will never execute
 }
 
@@ -102,7 +102,7 @@ TEST(SwapContext, ExecuteOnTop) {
     EXPECT_FALSE(onTop2);
     // swap to new context, parentContext will point to the current context,
     //  resuming execution right after the call to swap_context
-    swap_context_on_top(nullptr, &subFunctionContext, nullptr, [](Context* parent, void*) {
+    swap_context_on_top(&subFunctionContext, nullptr, [](Context* parent, void*) {
         parentContext = *parent;
         EXPECT_FALSE(calledSubFunctionWithOnTop1);
         EXPECT_FALSE(onTop1);
@@ -115,7 +115,7 @@ TEST(SwapContext, ExecuteOnTop) {
     EXPECT_FALSE(onTop2);
 
     // swap to context inside subFunction
-    swap_context_on_top(nullptr, &subfunctionInnerContext, nullptr, [](Context* parent, void*) {
+    swap_context_on_top(&subfunctionInnerContext, nullptr, [](Context* parent, void*) {
         parentContext = *parent;
         EXPECT_FALSE(calledSubFunctionWithOnTop2);
         EXPECT_FALSE(onTop2);

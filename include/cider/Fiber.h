@@ -170,7 +170,7 @@ namespace Cider {
 
         void swapContextInternalEntering(std::span<char> stack, std::function<void()> onTop);
         void swapContextInternalExiting(std::span<char> stack, std::function<void()> onTop);
-        void swapContextInternal(Context* current, Context* switchTo, std::span<char> stack, std::function<void(Context*)> onTop);
+        void swapContextInternal(Context* switchTo, std::span<char> stack, std::function<void(Context*)> onTop);
 
 #ifdef CIDER_ASAN
 
