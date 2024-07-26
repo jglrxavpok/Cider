@@ -74,18 +74,19 @@ namespace Cider {
         currentContext.rsp -= sizeof(Context); // context to switch to
         *(Context*)currentContext.rsp = currentContext;
 
-        swapContextInternalEntering(stack, [this]() {
+        swapContextInternalEntering(stack, [](void* pUserData) {
+            auto* pThis = static_cast<Fiber*>(pUserData);
             FiberHandle handle;
-            handle.pCurrentFiber = this;
-            this->pFiberHandle = &handle;
+            handle.pCurrentFiber = pThis;
+            pThis->pFiberHandle = &handle;
 
             // setups stack with a fiber handle
             handle.yield(); // go back to constructor
 
-            this->proc(*pFiberHandle, pUserData);
+            pThis->proc(*pThis->pFiberHandle, pThis->pUserData);
             handle.yield(); // execution finished: return to parent.
             // going past that line goes into FiberBottomOfCallstack
-        });
+        }, this);
     }
 
     static void stdFunctionProc(FiberHandle& fiber, void *pData) {
@@ -94,24 +95,44 @@ namespace Cider {
         (*pFunc)(fiber);
     }
 
+    // avoid copies of std::function everywhere
+    struct SwitchData {
+        void* proc; // sometimes FiberProc, sometimes Proc
+        void* userData;
+        Fiber* pFiber;
+    };
+
     Fiber::Fiber(StdFunctionFiberProc proc, std::span<char> stack, Scheduler& scheduler)
             : Fiber(stdFunctionProc, new StdFunctionFiberProc(
             std::move(proc)) /* this instance will be deleted inside stdFunctionProc */, stack, scheduler) {}
 
     void Fiber::switchTo() {
-        swapContextInternalEntering(stack, []() {});
+        swapContextInternalEntering(stack, [](void*) {}, nullptr);
     }
 
     void Fiber::switchToWithOnTop(FiberProc onTopFunc, void *onTopUserData) {
-        swapContextInternalEntering(stack, [this, onTopFunc, onTopUserData]() {
-            onTopFunc(*pFiberHandle, onTopUserData);
-        });
+        SwitchData sd;
+        sd.proc = onTopFunc;
+        sd.userData = onTopUserData;
+        sd.pFiber = this;
+        swapContextInternalEntering(stack, [](void* userData) {
+            auto* sd = static_cast<SwitchData*>(userData);
+            Fiber* pThis = sd->pFiber;
+            static_cast<FiberProc>(sd->proc)(*pThis->pFiberHandle, sd->userData);
+        }, &sd);
     }
 
     void Fiber::switchToWithOnTop(StdFunctionFiberProc onTop) {
-        swapContextInternalEntering(stack, [this, onTopProc = std::move(onTop)]() {
-            onTopProc(*pFiberHandle);
-        });
+        struct SwitchDataStd {
+            StdFunctionFiberProc stdFunc;
+            Fiber* pThis;
+        } sd;
+        sd.stdFunc = std::move(onTop);
+        sd.pThis = this;
+        swapContextInternalEntering(stack, [](void* pUserData) {
+            SwitchDataStd sdCopy = *static_cast<SwitchDataStd*>(pUserData);
+            sdCopy.stdFunc(*sdCopy.pThis->pFiberHandle);
+        }, &sd);
     }
 
     FiberHandle *Fiber::getHandlePtr() {
@@ -119,21 +140,32 @@ namespace Cider {
     }
 
     void FiberHandle::yield() {
-        pCurrentFiber->swapContextInternalExiting({}, []() {});
+        pCurrentFiber->swapContextInternalExiting({}, [](void*) {}, nullptr);
     }
 
     void FiberHandle::yieldOnTop(Proc onTopProc, void *onTopUserData) {
+        SwitchData sd {
+            .proc = onTopProc,
+            .userData = onTopUserData,
+            .pFiber = nullptr,
+        };
         pCurrentFiber->swapContextInternalExiting({},
-                                   [this, onTopProc, onTopUserData]() {
-                                       onTopProc(onTopUserData);
-                                   });
+                                   [](void* pUserData) {
+                                       auto* sd = static_cast<SwitchData*>(pUserData);
+                                       static_cast<Proc>(sd->proc)(sd->userData);
+                                   }, &sd);
     }
 
     void FiberHandle::yieldOnTop(StdFunctionProc onTop) {
+        struct SwitchDataStd {
+            StdFunctionProc stdFunc;
+        } sd;
+        sd.stdFunc = std::move(onTop);
         pCurrentFiber->swapContextInternalExiting({},
-                                   [this, onTopProc = std::move(onTop)]() {
-                                       onTopProc();
-                                   });
+                                   [](void *pUserData) {
+                                        SwitchDataStd sdCopy = *static_cast<SwitchDataStd*>(pUserData);
+                                        sdCopy.stdFunc();
+                                   }, &sd);
     }
 
     void FiberHandle::resume() {
@@ -160,36 +192,53 @@ namespace Cider {
         pCurrentFiber->scheduler.schedule(*this, proc);
     }
 
-    void Fiber::swapContextInternalEntering(std::span<char> stack, std::function<void()> onTop) {
+    void Fiber::swapContextInternalEntering(std::span<char> stack, Proc onTop, void* onTopUserData) {
         if(OnFiberExit && getCurrentFiberTLS() != nullptr) {
             OnFiberExit(getCurrentFiberTLS());
         }
         pParent = getCurrentFiberTLS();
-        swapContextInternal(&currentContext, stack, [this, onTop](Context* fromContext) {
+
+        SwitchData sd {
+            .proc = onTop,
+            .userData = onTopUserData,
+            .pFiber = this,
+        };
+
+        swapContextInternal(&currentContext, stack, [](Context* fromContext, void* pUserData) {
+            auto* sd = static_cast<SwitchData*>(pUserData);
             if(OnFiberEnter) {
-                OnFiberEnter(this);
+                OnFiberEnter(sd->pFiber);
             }
-            getCurrentFiberTLS() = this;
-            this->parentContext = *fromContext;
-            onTop();
-        });
+            getCurrentFiberTLS() = sd->pFiber;
+            sd->pFiber->parentContext = *fromContext;
+            // execute ontop function
+            static_cast<Proc>(sd->proc)(sd->userData);
+        }, &sd);
     }
 
-    void Fiber::swapContextInternalExiting(std::span<char> stack, std::function<void()> onTop) {
+    void Fiber::swapContextInternalExiting(std::span<char> stack, Proc onTop, void* onTopUserData) {
         if(OnFiberExit) {
             OnFiberExit(this);
         }
-        swapContextInternal(&parentContext, stack, [this, onTop](Context* fromContext) {
-            if(OnFiberEnter && pParent) {
-                OnFiberEnter(pParent);
+
+        SwitchData sd {
+            .proc = onTop,
+            .userData = onTopUserData,
+            .pFiber = this,
+        };
+        swapContextInternal(&parentContext, stack, [](Context* fromContext, void* pUserData) {
+            auto* sd = static_cast<SwitchData*>(pUserData);
+            if(OnFiberEnter && sd->pFiber->pParent) {
+                OnFiberEnter(sd->pFiber->pParent);
             }
-            getCurrentFiberTLS() = pParent;
-            this->currentContext = *fromContext;
-            onTop();
-        });
+            getCurrentFiberTLS() = sd->pFiber->pParent;
+            sd->pFiber->currentContext = *fromContext;
+            // execute ontop function
+            static_cast<Proc>(sd->proc)(sd->userData);
+        }, &sd);
     }
 
-    void Fiber::swapContextInternal(Context *switchTo, std::span<char> stack, std::function<void(Context*)> onTop) {
+    void Fiber::swapContextInternal(Context *switchTo, std::span<char> stack, OnTopContextSwitchFunc onTop, void* onTopUserData) {
 #ifdef CIDER_ASAN
         if(stack.empty()) {
             // for swaps to non-fiber code
@@ -207,8 +256,15 @@ namespace Cider {
             });
         }
 #else
-        swapContextOnTop(switchTo, [this, onTop](Context* parentContext) {
-            onTop(parentContext);
+        SwitchData sd {
+            .proc = onTop,
+            .userData = onTopUserData,
+            .pFiber = this,
+        };
+        swap_context_on_top(switchTo, &sd, [](Context* parentContext, void* pUserData) {
+            auto* sd = static_cast<SwitchData*>(pUserData);
+            auto* pFunc = static_cast<OnTopContextSwitchFunc>(sd->proc);
+            pFunc(parentContext, sd->userData);
         });
 #endif
     }

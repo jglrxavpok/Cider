@@ -168,9 +168,11 @@ namespace Cider {
         Context parentContext; // context to resume to when execution stops or yields
         Context currentContext; // context to resume when switching into this fiber
 
-        void swapContextInternalEntering(std::span<char> stack, std::function<void()> onTop);
-        void swapContextInternalExiting(std::span<char> stack, std::function<void()> onTop);
-        void swapContextInternal(Context* switchTo, std::span<char> stack, std::function<void(Context*)> onTop);
+        void swapContextInternalEntering(std::span<char> stack, Proc onTop, void* onTopUserData);
+        void swapContextInternalExiting(std::span<char> stack, Proc onTop, void* onTopUserData);
+
+        using OnTopContextSwitchFunc = void(*)(Context*, void* pUserData);
+        void swapContextInternal(Context* switchTo, std::span<char> stack, OnTopContextSwitchFunc pOnTop, void* onTopUserData);
 
 #ifdef CIDER_ASAN
 
