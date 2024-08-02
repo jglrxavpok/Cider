@@ -116,9 +116,9 @@ namespace Cider {
         sd.userData = onTopUserData;
         sd.pFiber = this;
         swapContextInternalEntering(stack, [](void* userData) {
-            auto* sd = static_cast<SwitchData*>(userData);
-            Fiber* pThis = sd->pFiber;
-            static_cast<FiberProc>(sd->proc)(*pThis->pFiberHandle, sd->userData);
+            auto sd = *static_cast<SwitchData*>(userData);
+            Fiber* pThis = sd.pFiber;
+            static_cast<FiberProc>(sd.proc)(*pThis->pFiberHandle, sd.userData);
         }, &sd);
     }
 
@@ -151,8 +151,8 @@ namespace Cider {
         };
         pCurrentFiber->swapContextInternalExiting({},
                                    [](void* pUserData) {
-                                       auto* sd = static_cast<SwitchData*>(pUserData);
-                                       static_cast<Proc>(sd->proc)(sd->userData);
+                                       auto sd = *static_cast<SwitchData*>(pUserData);
+                                       static_cast<Proc>(sd.proc)(sd.userData);
                                    }, &sd);
     }
 
@@ -205,14 +205,14 @@ namespace Cider {
         };
 
         swapContextInternal(&currentContext, stack, [](Context* fromContext, void* pUserData) {
-            auto* sd = static_cast<SwitchData*>(pUserData);
+            auto sd = *static_cast<SwitchData*>(pUserData);
             if(OnFiberEnter) {
-                OnFiberEnter(sd->pFiber);
+                OnFiberEnter(sd.pFiber);
             }
-            getCurrentFiberTLS() = sd->pFiber;
-            sd->pFiber->parentContext = *fromContext;
+            getCurrentFiberTLS() = sd.pFiber;
+            sd.pFiber->parentContext = *fromContext;
             // execute ontop function
-            static_cast<Proc>(sd->proc)(sd->userData);
+            static_cast<Proc>(sd.proc)(sd.userData);
         }, &sd);
     }
 
@@ -227,14 +227,14 @@ namespace Cider {
             .pFiber = this,
         };
         swapContextInternal(&parentContext, stack, [](Context* fromContext, void* pUserData) {
-            auto* sd = static_cast<SwitchData*>(pUserData);
-            if(OnFiberEnter && sd->pFiber->pParent) {
-                OnFiberEnter(sd->pFiber->pParent);
+            auto sd = *static_cast<SwitchData*>(pUserData);
+            if(OnFiberEnter && sd.pFiber->pParent) {
+                OnFiberEnter(sd.pFiber->pParent);
             }
-            getCurrentFiberTLS() = sd->pFiber->pParent;
-            sd->pFiber->currentContext = *fromContext;
+            getCurrentFiberTLS() = sd.pFiber->pParent;
+            sd.pFiber->currentContext = *fromContext;
             // execute ontop function
-            static_cast<Proc>(sd->proc)(sd->userData);
+            static_cast<Proc>(sd.proc)(sd.userData);
         }, &sd);
     }
 
@@ -262,9 +262,9 @@ namespace Cider {
             .pFiber = this,
         };
         swap_context_on_top(switchTo, &sd, [](Context* parentContext, void* pUserData) {
-            auto* sd = static_cast<SwitchData*>(pUserData);
-            auto* pFunc = static_cast<OnTopContextSwitchFunc>(sd->proc);
-            pFunc(parentContext, sd->userData);
+            auto sd = *static_cast<SwitchData*>(pUserData);
+            auto* pFunc = static_cast<OnTopContextSwitchFunc>(sd.proc);
+            pFunc(parentContext, sd.userData);
         });
 #endif
     }
