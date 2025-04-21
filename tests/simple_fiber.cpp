@@ -47,7 +47,7 @@ TEST(SimpleFiber, FunctionPointers) {
     EXPECT_EQ(myData.string, "Hi !!!");
     EXPECT_FLOAT_EQ(myData.pi, 3.14159f);
 
-    EXPECT_EXIT(fiber.switchTo(), ::testing::ExitedWithCode(-1), "Reached bottom of fiber callstack"); // fiber has reached bottom of callstack, returning is not allowed at this point
+    EXPECT_EXIT(fiber.switchTo(), ::testing::ExitedWithCode(255), "Reached bottom of fiber callstack"); // fiber has reached bottom of callstack, returning is not allowed at this point
 }
 
 TEST(SimpleFiber, StdFunction) {
@@ -75,7 +75,7 @@ TEST(SimpleFiber, StdFunction) {
     EXPECT_EQ(myData.string, "Hi !!!");
     EXPECT_FLOAT_EQ(myData.pi, 3.14159f);
 
-    EXPECT_EXIT(fiber.switchTo(), ::testing::ExitedWithCode(-1), "Reached bottom of fiber callstack"); // fiber has reached bottom of callstack, returning is not allowed at this point
+    EXPECT_EXIT(fiber.switchTo(), ::testing::ExitedWithCode(255), "Reached bottom of fiber callstack"); // fiber has reached bottom of callstack, returning is not allowed at this point
 }
 
 TEST(SimpleFiber, FiberReuse) {

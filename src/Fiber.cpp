@@ -53,13 +53,15 @@ namespace Cider {
         parentContext = InvalidContext;
         currentContext = {0};
         currentContext.rip = (Register) FiberBottomOfCallstack;
+#if CONTEXT_HAS_STACK_INFO
         currentContext.stackHighAddress = reinterpret_cast<Address>(stack.data() + stack.size());
         currentContext.stackLowAddress = reinterpret_cast<Address>(stack.data());
         currentContext.deallocationStack = reinterpret_cast<Address>(stack.data()-4096 /*TODO: real page size?*/);
         currentContext.guaranteedStackBytes = 0;
 
         currentContext.stackHighAddress = reinterpret_cast<Address>(stack.data() + stack.size());
-        currentContext.rsp = currentContext.stackHighAddress;
+#endif
+        currentContext.rsp = reinterpret_cast<Address>(stack.data() + stack.size());
 
         // TODO: check return address push, does not seem to work properly, lldb and PIX don't seem to find the proper bottom of stack
         currentContext.rsp -= 8*4; // parameter space
@@ -68,7 +70,6 @@ namespace Cider {
         currentContext.rsp -= 8; // return address
         *(Address*)(currentContext.rsp) = currentContext.rip;
 
-        static_assert(sizeof(Context) == 272); // don't forget to change context_masm.asm if WinContext changes
         currentContext.rsp = currentContext.rsp & ~0xFull;
 
         currentContext.rsp -= sizeof(Context); // context to switch to
@@ -112,13 +113,13 @@ namespace Cider {
 
     void Fiber::switchToWithOnTop(FiberProc onTopFunc, void *onTopUserData) {
         SwitchData sd;
-        sd.proc = onTopFunc;
+        sd.proc = (void*)onTopFunc;
         sd.userData = onTopUserData;
         sd.pFiber = this;
         swapContextInternalEntering(stack, [](void* userData) {
             auto sd = *static_cast<SwitchData*>(userData);
             Fiber* pThis = sd.pFiber;
-            static_cast<FiberProc>(sd.proc)(*pThis->pFiberHandle, sd.userData);
+            ((FiberProc)sd.proc)(*pThis->pFiberHandle, sd.userData);
         }, &sd);
     }
 
@@ -145,14 +146,14 @@ namespace Cider {
 
     void FiberHandle::yieldOnTop(Proc onTopProc, void *onTopUserData) {
         SwitchData sd {
-            .proc = onTopProc,
+            .proc = (void*)onTopProc,
             .userData = onTopUserData,
             .pFiber = nullptr,
         };
         pCurrentFiber->swapContextInternalExiting({},
                                    [](void* pUserData) {
                                        auto sd = *static_cast<SwitchData*>(pUserData);
-                                       static_cast<Proc>(sd.proc)(sd.userData);
+                                       ((Proc)sd.proc)(sd.userData);
                                    }, &sd);
     }
 
@@ -199,7 +200,7 @@ namespace Cider {
         pParent = getCurrentFiberTLS();
 
         SwitchData sd {
-            .proc = onTop,
+            .proc = (void*)onTop,
             .userData = onTopUserData,
             .pFiber = this,
         };
@@ -212,7 +213,7 @@ namespace Cider {
             getCurrentFiberTLS() = sd.pFiber;
             sd.pFiber->parentContext = *fromContext;
             // execute ontop function
-            static_cast<Proc>(sd.proc)(sd.userData);
+            ((Proc)sd.proc)(sd.userData);
         }, &sd);
     }
 
@@ -222,7 +223,7 @@ namespace Cider {
         }
 
         SwitchData sd {
-            .proc = onTop,
+            .proc = (void*)onTop,
             .userData = onTopUserData,
             .pFiber = this,
         };
@@ -234,36 +235,40 @@ namespace Cider {
             getCurrentFiberTLS() = sd.pFiber->pParent;
             sd.pFiber->currentContext = *fromContext;
             // execute ontop function
-            static_cast<Proc>(sd.proc)(sd.userData);
+            ((Proc)sd.proc)(sd.userData);
         }, &sd);
     }
 
     void Fiber::swapContextInternal(Context *switchTo, std::span<char> stack, OnTopContextSwitchFunc onTop, void* onTopUserData) {
+        SwitchData sd {
+            .proc = (void*)onTop,
+            .userData = onTopUserData,
+            .pFiber = this,
+        };
 #ifdef CIDER_ASAN
         if(stack.empty()) {
             // for swaps to non-fiber code
             __sanitizer_start_switch_fiber(nullptr, nullptr, 0);
-            swapContextOnTop(current, switchTo, [=]() {
+            swapContextOnTop(switchTo, [pUserData = &sd](Context* parentContext) {
                 __sanitizer_finish_switch_fiber(nullptr, nullptr, nullptr);
-                onTop();
+                auto sd = *static_cast<SwitchData*>(pUserData);
+                auto* pFunc = ((OnTopContextSwitchFunc)sd.proc);
+                pFunc(parentContext, sd.userData);
             });
         } else {
             void* fakeStackSave = nullptr;
             __sanitizer_start_switch_fiber(&fakeStackSave, stack.data(), stack.size());
-            swapContextOnTop(current, switchTo, [=]() {
+            swapContextOnTop(switchTo, [pUserData = &sd, &fakeStackSave](Context* parentContext) {
                 __sanitizer_finish_switch_fiber(fakeStackSave, nullptr, nullptr);
-                onTop();
+                auto sd = *static_cast<SwitchData*>(pUserData);
+                auto* pFunc = ((OnTopContextSwitchFunc)sd.proc);
+                pFunc(parentContext, sd.userData);
             });
         }
 #else
-        SwitchData sd {
-            .proc = onTop,
-            .userData = onTopUserData,
-            .pFiber = this,
-        };
         swap_context_on_top(switchTo, &sd, [](Context* parentContext, void* pUserData) {
             auto sd = *static_cast<SwitchData*>(pUserData);
-            auto* pFunc = static_cast<OnTopContextSwitchFunc>(sd.proc);
+            auto* pFunc = ((OnTopContextSwitchFunc)sd.proc);
             pFunc(parentContext, sd.userData);
         });
 #endif

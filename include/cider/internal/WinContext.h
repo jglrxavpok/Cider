@@ -49,3 +49,4 @@ struct WinContext {
     // need MMX(?) Status control word
     // need x87 control word
 };
+static_assert(sizeof(WinContext) == 272); // don't forget to change context_masm.asm if WinContext changes

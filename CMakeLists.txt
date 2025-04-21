@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 # ASM support
 # https://discourse.cmake.org/t/building-lib-file-from-asm-cmake-bug/1959
 enable_language(ASM_MASM) # required for the context manipulation routines
+enable_language(ASM)
 set(CMAKE_ASM_MASM_CREATE_STATIC_LIBRARY "<CMAKE_AR> /OUT:<TARGET> <LINK_FLAGS> <OBJECTS>")
 
 option(CIDER_ASAN "Enable ASAN support in Cider" OFF) # does not work very well for now
@@ -14,10 +15,17 @@ if(CIDER_ASAN)
     add_link_options(-fsanitize=address)
 endif(CIDER_ASAN)
 
+if(WIN32)
+    set(AssemblySource "src/context_masm.asm")
+endif ()
+
+if(UNIX)
+    set(AssemblySource "src/context_linux_x64.S")
+endif ()
 
 include(FetchContent)
 set(Cider-Sources
-        src/context_masm.asm
+        ${AssemblySource}
         src/context.cpp
         src/Fiber.cpp
         src/FiberTLS.cpp

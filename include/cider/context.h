@@ -4,12 +4,22 @@
 
 #pragma once
 
+#define CONTEXT_HAS_STACK_INFO 0
 #ifdef _WIN64
 #include <cider/internal/WinContext.h>
 using Context = WinContext;
+#define CONTEXT_HAS_STACK_INFO 1
+#elifdef __linux__
+#include <cider/internal/LinuxContext.h>
+using Context = LinuxContext;
 #else
 #error Platform not supported, good luck.
 #endif
+
+#ifdef __GNUC__
+#define __cdecl __attribute__((__cdecl__))
+#endif
+
 
 extern "C" {
  /**

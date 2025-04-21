@@ -47,7 +47,11 @@ TEST(Exceptions, CatchInsideMallocedStack) {
 }
 
 TEST(Exceptions, CatchInsideAllocaedStack) {
+#ifdef _WIN32
     char* stack = (char*) _malloca(4096*16);
+#else
+    char* stack = (char*) alloca(4096*16);
+#endif
     memset(stack, 0, 4096*16);
     bool caught = false;
     auto proc = [&](Cider::FiberHandle& fiber) {
@@ -63,7 +67,9 @@ TEST(Exceptions, CatchInsideAllocaedStack) {
     EXPECT_FALSE(caught);
     fiber.switchTo();
     EXPECT_TRUE(caught);
+#ifdef _WIN32
     _freea(stack);
+#endif
 }
 
 TEST(Exceptions, CatchInsideGrowingStack) {

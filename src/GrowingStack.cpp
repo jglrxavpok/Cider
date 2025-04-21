@@ -50,6 +50,32 @@ struct Impl {
         return std::span{ (char*)allocAddress+pageSize, requestedSize };
     }
 };
+#elifdef __linux__
+#include <sys/mman.h>
+
+struct Impl {
+    std::size_t requestedSize = 0;
+    void* baseAddress = nullptr;
+
+    explicit Impl(std::size_t maxSize): requestedSize(maxSize) {
+        baseAddress = mmap(nullptr, requestedSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_GROWSDOWN | MAP_STACK, -1, 0);
+        if (!baseAddress) {
+            throw std::invalid_argument("Could not allocate virtual stack");
+        }
+    }
+
+    ~Impl() {
+        munmap(baseAddress, requestedSize);
+    }
+
+    void withStack(const std::function<void()>& f) {
+        f();
+    }
+
+    std::span<char> asSpan() {
+        return std::span{ (char*)baseAddress, requestedSize };
+    }
+};
 #else
 #error No implementation for this platform.
 #endif

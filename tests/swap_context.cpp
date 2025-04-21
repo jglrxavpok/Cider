@@ -22,10 +22,12 @@ static void make_context(Context* out, char* stack_top, char* stack_bottom, void
     *out = {0};
     out->rsp = (Address)rsp;
     out->rip = (Register)function_pointer;
+#if CONTEXT_HAS_STACK_INFO
     out->stackHighAddress = (Address)stack_top;
     out->stackLowAddress = (Address)stack_bottom;
     out->deallocationStack = (Address)stack_bottom;
     out->guaranteedStackBytes = 0;
+#endif
     memcpy((char*)rsp, out, sizeof(Context));
 }
 

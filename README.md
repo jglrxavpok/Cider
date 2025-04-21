@@ -7,7 +7,7 @@ fast context switching.
 Partially based on https://graphitemaster.github.io/fibers/ (warning, it has 2 errors: RSP is not read properly in get_context, 
 and first integer argument is RCX on Windows, not RDX)
 
-Windows only for now. Relies on the STL, but it should be easy to replace types with your own.
+Supports Windows and Linux. Relies on the STL, but it should be easy to replace types with your own.
 
 # Usage
 ## Creating a fiber
