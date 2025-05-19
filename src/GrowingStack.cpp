@@ -50,7 +50,7 @@ struct Impl {
         return std::span{ (char*)allocAddress+pageSize, requestedSize };
     }
 };
-#elifdef __linux__
+#elif defined(__linux__)
 #include <sys/mman.h>
 
 struct Impl {

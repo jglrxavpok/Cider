@@ -9,7 +9,7 @@
 #include <cider/internal/WinContext.h>
 using Context = WinContext;
 #define CONTEXT_HAS_STACK_INFO 1
-#elifdef __linux__
+#elif defined(__linux__)
 #include <cider/internal/LinuxContext.h>
 using Context = LinuxContext;
 #else

@@ -5,8 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 
 # ASM support
 # https://discourse.cmake.org/t/building-lib-file-from-asm-cmake-bug/1959
-enable_language(ASM_MASM) # required for the context manipulation routines
-enable_language(ASM)
+if(WIN32)
+    enable_language(ASM_MASM) # required for the context manipulation routines
+else ()
+    enable_language(ASM)
+endif ()
 set(CMAKE_ASM_MASM_CREATE_STATIC_LIBRARY "<CMAKE_AR> /OUT:<TARGET> <LINK_FLAGS> <OBJECTS>")
 
 option(CIDER_ASAN "Enable ASAN support in Cider" OFF) # does not work very well for now
