@@ -1,10 +1,8 @@
 .type get_context, @function
 .type set_context, @function
-.type swap_context, @function
 .type swap_context_on_top, @function
 .global get_context
 .global set_context
-.global swap_context
 .global swap_context_on_top
 
 # Store the current context inside a given LinuxContext* (stored in rdi, 1st arg)
