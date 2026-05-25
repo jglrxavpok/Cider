@@ -17,7 +17,7 @@ using Context = LinuxContext;
 #endif
 
 #ifdef __GNUC__
-#define __cdecl __attribute__((__cdecl__))
+#define __cdecl
 #endif
 
 
