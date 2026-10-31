@@ -4,7 +4,6 @@
 
 #pragma once
 
-#define CONTEXT_HAS_STACK_INFO 0
 #ifdef _WIN64
 #include <cider/internal/WinContext.h>
 using Context = WinContext;
@@ -12,6 +11,7 @@ using Context = WinContext;
 #elif defined(__linux__)
 #include <cider/internal/LinuxContext.h>
 using Context = LinuxContext;
+#define CONTEXT_HAS_STACK_INFO 0
 #else
 #error Platform not supported, good luck.
 #endif
